@@ -217,7 +217,7 @@ class TestSuite:
         assert response.status_code == 400, f"Unexpected status code {response.status_code}"
         assert "Параметр 'title' должен содержать не более 999 символов" in response.json()['error']['message'], "There is not correct 'message'"
         print(f"\n {mthd}'s response: {response.json()}\n")
-    def COMMENTtest_lifetime_of_token(self):
+    def test_exceeding_lifetime_of_token(self):
         mthd = "/v1/favorites"
         title_value = "TestTitle"
         lat_value = 50.0  # The valid values are between -90 and 90
@@ -232,7 +232,7 @@ class TestSuite:
         assert response.status_code == 401, f"Unexpected status code {response.status_code}"
 
     @pytest.mark.parametrize('lat', lat_available) # TODO: To figure out with exponential format of numbers
-    def test_available_lat(self, lat):
+    def test_available_lon(self, lat):
         mthd = "/v1/favorites"
         title_value = "TestTitle"
         lon_value = 50.0  # The valid values are between -180 and 180
@@ -298,3 +298,162 @@ class TestSuite:
             assert "Параметр 'lon' должен быть не менее -180" in response.json()['error'][
                 'message'], "There is not correct 'message'"
         print(f"\n {mthd}'s response: {response.json()}\n")
+
+    def test_several_favorites_per_one_token(self):
+        mthd = "/v1/favorites"
+        bodies_array = [
+            {
+                "title": "TestTitle1",
+                "lat": 50,
+                "lon": 50,
+            },
+            {
+                "title": "TestTitle2",
+                "lat": 49,
+                "lon": 49,
+            },
+            {
+                "title": "TestTitle3",
+                "lat": 48,
+                "lon": 48,
+            },
+        ]
+        response = requests.post(TestSuite.main_url + mthd, data=bodies_array[0], cookies=self.auth_cookies)
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        response = requests.post(TestSuite.main_url + mthd, data=bodies_array[1], cookies=self.auth_cookies)
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        response = requests.post(TestSuite.main_url + mthd, data=bodies_array[2], cookies=self.auth_cookies)
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+
+    def test_without_lon(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lat": lat_value,
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 400, f"Unexpected status code {response.status_code}"
+        assert "Параметр 'lon' является обязательным" in response.json()['error']['message'], "There is not correct 'message'"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+
+    def test_without_lat(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lon_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lon": lon_value,
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 400, f"Unexpected status code {response.status_code}"
+        assert "Параметр 'lat' является обязательным" in response.json()['error']['message'], "There is not correct 'message'"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+
+    def test_without_title(self):
+        mthd = "/v1/favorites"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        assert response.status_code == 400, f"Unexpected status code {response.status_code}"
+        assert "Параметр 'title' является обязательным" in response.json()['error']['message'], "There is not correct 'message'"
+
+    def test_invalid_token(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        arbitrary_token = {
+            'token': 'absolutelyunrealtoken'
+        }
+        body = {
+            "title": title_value,
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=arbitrary_token)
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        assert response.status_code == 401, f"Unexpected status code {response.status_code}"
+        assert "Передан несуществующий или «протухший» 'token'" in response.json()['error']['message'], "There is not correct 'message'"
+
+    def test_try_to_id_field_in_requestBody(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        id = 1689999999843
+        body = {
+            "id": 1682999989843,
+            "title": title_value,
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        assert response.json()["id"] != id, "There is able to force choose id in response"
+
+    def test_double_set_same_favorite(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        id_from_first_response = response.json()['id']
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        assert response.json()['id'] == id_from_first_response, "Idempotence is not performed. Id of the same requests is not similar"
+        # I'm not sure, that the /favorites should be an idempotent request.
+
+    def test_without_token(self):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body)
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        assert response.status_code == 401, f"Unexpected status code {response.status_code}"
+        assert "Параметр 'token' является обязательным" in response.json()['error']['message'], "There is not correct 'message'"
+
+    # def test_new_coord_for_existing_title(self):
+    #     mthd = "/v1/favorites"
+    #     title_value = "TestTitle"
+    #     lat_value1 = 50.0  # The valid values are between -90 and 90
+    #     lat_value2 = 90.0
+    #     lon_value1 = 50.0  # The valid values are between -90 and 90
+    #     lon_value2 = 90.0
+    #     body = {
+    #         "title": title_value,
+    #         "lon": lon_value1,
+    #         "lat": lat_value1
+    #     }
+    #     body2 = {
+    #         "title": title_value,
+    #         "lon": lon_value2,
+    #         "lat": lat_value2
+    #     }
+    #     response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+    #     print(f"\n {mthd}'s response: {response.json()}\n")
+    #     response = requests.post(TestSuite.main_url + mthd, data=body2, cookies=self.auth_cookies)
+    #     print(f"\n {mthd}'s response: {response.json()}\n")
+    #
