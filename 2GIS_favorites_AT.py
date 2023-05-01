@@ -27,10 +27,6 @@ class TestSuite:
         (''.join(random.choice(string.printable) for i in range(500))),
         (''.join(random.choice(string.printable) for i in range(999)))
     ]
-    titles_negative = [ # TODO: Need to remove
-        (""),
-        (''.join(random.choice(string.printable) for i in range(1000)))
-    ]
     lat_available = [
         (-90.000000),
         (-50.555555),
@@ -190,15 +186,28 @@ class TestSuite:
         assert response.status_code == 400, f"Unexpected status code {response.status_code}"
         print(f"\n {mthd}'s response: {response.json()}\n")
         assert "error" in response.json(), "There is no 'error' for a wrong request"
-        assert (json.loads(response.text).get('error').get('message')) == "Параметр 'color' может быть одним из следующих значений: BLUE, GREEN, RED, YELLOW", "There is no 'message' for a wrong request"
-        # TODO: To figure out negative asserts
-        # TODO: To fix this trash with assert message
+        assert "Параметр 'color' может быть одним из следующих значений: BLUE, GREEN, RED, YELLOW" in response.json()['error']['message'], "There is not correct 'message'"
+        # TODO: To figure out negative asserts. For ex: "assert "smth" is not in ...."
 
-    @pytest.mark.parametrize('title', titles_negative)
-    def test_all_available_titles(self, title):  # TODO: divide on 2 tests, validate it
+    def test_empty_title(self):
         mthd = "/v1/favorites"
         lat_value = 50.0  # The valid values are between -90 and 90
         lon_value = 50.0  # The valid values are between -180 and 180
+        body = {
+            "title": "",
+            "lat": lat_value,
+            "lon": lon_value,
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 400, f"Unexpected status code {response.status_code}"
+        assert "Параметр 'title' не может быть пустым" in response.json()['error']['message'], "There is not correct 'message'"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+
+    def test_too_large_title(self):
+        mthd = "/v1/favorites"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -180 and 180
+        title = ''.join(random.choice(string.printable) for i in range(1000))
         body = {
             "title": title,
             "lat": lat_value,
@@ -206,9 +215,8 @@ class TestSuite:
         }
         response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
         assert response.status_code == 400, f"Unexpected status code {response.status_code}"
-        assert "error" in response.json(), "There is no 'error' for a wrong request"
+        assert "Параметр 'title' должен содержать не более 999 символов" in response.json()['error']['message'], "There is not correct 'message'"
         print(f"\n {mthd}'s response: {response.json()}\n")
-
     def COMMENTtest_lifetime_of_token(self):
         mthd = "/v1/favorites"
         title_value = "TestTitle"
@@ -265,6 +273,28 @@ class TestSuite:
         }
         response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
         assert response.status_code == 400, f"Unexpected status code {response.status_code}"
-        assert "должен быть" in response.json(), "There is not correct 'message'"
-        # assert response.json()["lat"] == lat, "The 'lat' value is not equal to requests"
+        if lat > 0:
+            assert "Параметр 'lat' должен быть не более 90" in response.json()['error']['message'], "There is not correct 'message'"
+        else:
+            assert "Параметр 'lat' должен быть не менее -90" in response.json()['error']['message'], "There is not correct 'message'"
+        print(f"\n {mthd}'s response: {response.json()}\n")
+
+    @pytest.mark.parametrize('lon', lon_wrong)
+    def test_lon_wrong(self, lon):
+        mthd = "/v1/favorites"
+        title_value = "TestTitle"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lat": lat_value,
+            "lon": lon,
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        assert response.status_code == 400, f"Unexpected status code {response.status_code}"
+        if lon > 0:
+            assert "Параметр 'lon' должен быть не более 180" in response.json()['error'][
+                'message'], "There is not correct 'message'"
+        else:
+            assert "Параметр 'lon' должен быть не менее -180" in response.json()['error'][
+                'message'], "There is not correct 'message'"
         print(f"\n {mthd}'s response: {response.json()}\n")
