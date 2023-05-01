@@ -229,6 +229,7 @@ class TestSuite:
         }
         time.sleep(2001/1000) # error at 2959 ms
         response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        print(f"\n {mthd}'s response: {response.json()}\n")
         assert response.status_code == 401, f"Unexpected status code {response.status_code}"
 
     @pytest.mark.parametrize('lat', lat_available) # TODO: To figure out with exponential format of numbers
@@ -321,9 +322,11 @@ class TestSuite:
         response = requests.post(TestSuite.main_url + mthd, data=bodies_array[0], cookies=self.auth_cookies)
         assert response.status_code == 200, f"Unexpected status code {response.status_code}"
         print(f"\n {mthd}'s response: {response.json()}\n")
+        time.sleep(1)
         response = requests.post(TestSuite.main_url + mthd, data=bodies_array[1], cookies=self.auth_cookies)
         assert response.status_code == 200, f"Unexpected status code {response.status_code}"
         print(f"\n {mthd}'s response: {response.json()}\n")
+        time.sleep(1)
         response = requests.post(TestSuite.main_url + mthd, data=bodies_array[2], cookies=self.auth_cookies)
         assert response.status_code == 200, f"Unexpected status code {response.status_code}"
         print(f"\n {mthd}'s response: {response.json()}\n")
@@ -434,6 +437,21 @@ class TestSuite:
         print(f"\n {mthd}'s response: {response.json()}\n")
         assert response.status_code == 401, f"Unexpected status code {response.status_code}"
         assert "Параметр 'token' является обязательным" in response.json()['error']['message'], "There is not correct 'message'"
+
+    def test_cyrillic_title(self):
+        mthd = "/v1/favorites"
+        title_value = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+        lat_value = 50.0  # The valid values are between -90 and 90
+        lon_value = 50.0  # The valid values are between -90 and 90
+        body = {
+            "title": title_value,
+            "lon": lon_value,
+            "lat": lat_value
+        }
+        response = requests.post(TestSuite.main_url + mthd, data=body, cookies=self.auth_cookies)
+        print(f"\n {mthd}'s response: {response.json()}\n")
+        assert response.status_code == 200, f"Unexpected status code {response.status_code}"
+        assert response.json()["title"] == title_value, "The 'title' value is not equal to requests"
 
     # def test_new_coord_for_existing_title(self):
     #     mthd = "/v1/favorites"
